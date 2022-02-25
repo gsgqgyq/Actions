@@ -38,8 +38,6 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan  
           
-          chmod +x caddy-linux-arm64
-
     - name: upload
       uses: actions/upload-artifact@master
       with:
