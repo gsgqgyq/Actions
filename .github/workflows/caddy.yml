@@ -10,12 +10,10 @@ jobs:
     steps:
     - name: install go
       uses: actions/setup-go@master
-    
-    - name: Install xcaddy
-      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@master
 
-    - name: build caddy-linux-amd64
+    - name: xcaddy
       run: |
+        go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=amd64
         export GOOS=linux
