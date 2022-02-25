@@ -1,0 +1,42 @@
+name: Build caddy-linux-amd64
+
+on:
+  push:
+    paths:
+      - 'caddy-linux-amd64.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: install go
+      uses: actions/setup-go@master
+    
+    - name: install xcaddy
+      run: |
+        tag_name=`curl -s https://api.github.com/repos/caddyserver/xcaddy/releases | grep 'tag_name' | sed -n '1p' | cut -d\" -f4`
+        wget -O ./xcaddy https://github.com/caddyserver/xcaddy/releases/download/${tag_name}/xcaddy_${tag_name}_linux_amd64
+        chmod 777 ./xcaddy
+
+    - name: build caddy
+      run: |
+        export GOARCH=amd64
+        export GOOS=linux
+        ./xcaddy build \
+          --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
+          --with github.com/clevergo/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
+          --with github.com/mholt/caddy-l4  \
+          --with github.com/mastercactapus/caddy2-proxyprotocol \
+          --with github.com/mholt/caddy-webdav  \
+          --with github.com/caddyserver/forwardproxy@caddy2  \
+          --with github.com/imgk/caddy-trojan  
+
+    - name: upload
+      uses: actions/upload-artifact@master
+      with:
+        name: caddy-linux-amd64
+        path: ./caddy
