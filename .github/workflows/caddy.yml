@@ -49,8 +49,9 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
+        body: caddy_${version} + forwardproxy、trojan、proxyprotocol 等插件
         file: ./caddy_${version}_linux-amd64
         asset_name: caddy_${version}_linux-amd64
         version: latest
-        tag: ${{ github.ref }}
+        tag: caddy_${version}
         
