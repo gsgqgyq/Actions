@@ -39,9 +39,12 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan  
           
-    - name: upload
-      uses: actions/upload-artifact@master
+    - name: Upload build to release
+      uses: svenstaro/upload-release-action@v2
       with:
-        name: caddy_linux-amd64
-        path: ./caddy
-    
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        body: caddy + forwardproxy、trojan、proxyprotocol 等插件
+        file: ./caddy_linux-amd64
+        asset_name: caddy_linux-amd64
+        version: latest
+        tag: ${{ github.ref }}
