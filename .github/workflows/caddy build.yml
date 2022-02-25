@@ -27,7 +27,7 @@ jobs:
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=amd64
         export GOOS=linux
-        xcaddy build ${version} --output ./caddy_linux-amd64 \
+        xcaddy build ${version} --output ./caddy_${version}_linux-amd64 \
           --with github.com/caddy-dns/cloudflare \
           --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
@@ -43,8 +43,9 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        body: caddy + forwardproxy、trojan、proxyprotocol 等插件
-        file: ./caddy_linux-amd64
-        asset_name: caddy_linux-amd64
-        version: latest
         tag: Caddy
+        body: Caddy2 + forwardproxy、trojan、proxyprotocol 等插件
+        file: ./caddy_*
+        overwrite: true
+        file_glob: true
+        
