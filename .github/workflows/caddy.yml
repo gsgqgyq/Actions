@@ -3,7 +3,7 @@ name: Build caddy-linux-amd64
 on:
   push:
     paths:
-      - 'caddy-linux-amd64.md'
+      - 'caddy-build.md'
 
 jobs:
   build:
@@ -16,11 +16,12 @@ jobs:
     - name: Install xcaddy
       run: go get -v github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
-    - name: build caddy
+    - name: build caddy-linux-amd64
       run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=amd64
         export GOOS=linux
-        ./xcaddy build \
+        xcaddy build ${version} --output ./caddy_${version} \
           --with github.com/caddy-dns/cloudflare \
           --with github.com/caddy-dns/alidns \
           --with github.com/clevergo/caddy-dnspodcn \
@@ -35,5 +36,15 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@master
       with:
-        name: caddy-linux-amd64
-        path: ./caddy
+        name: caddy_${version}_linux-amd64
+        path: ./caddy/caddy_${version}_linux-amd64
+    
+    - name: Upload build to release
+      uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./caddy/caddy_${version}_linux-amd64
+          asset_name: caddy_${version}_linux-amd64
+          version: latest
+          tag: ${{ github.ref }}
+        
