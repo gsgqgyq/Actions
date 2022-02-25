@@ -22,7 +22,7 @@ jobs:
         sudo apt update
         sudo apt install xcaddy
     
-    - name: xcaddy caddy
+    - name: xcaddy linux-amd64
       run: |
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=amd64
@@ -39,11 +39,29 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan  
           
+    - name: xcaddy linux-arm64
+      run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=arm64
+        export GOOS=linux
+        xcaddy build ${version} --output ./caddy_${version}_linux-arm64 \
+          --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
+          --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
+          --with github.com/mholt/caddy-l4  \
+          --with github.com/mastercactapus/caddy2-proxyprotocol \
+          --with github.com/mholt/caddy-webdav  \
+          --with github.com/caddyserver/forwardproxy@caddy2  \
+          --with github.com/imgk/caddy-trojan 
+          
+          
     - name: Upload build to release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: Caddy
+        tag: Caddy2
         body: Caddy2 + forwardproxy、trojan、proxyprotocol 等插件
         file: ./caddy_*
         overwrite: true
