@@ -12,7 +12,7 @@ jobs:
       uses: actions/setup-go@master
     
     - name: Install xcaddy
-      run: go get -v github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@master
 
     - name: build caddy-linux-amd64
       run: |
