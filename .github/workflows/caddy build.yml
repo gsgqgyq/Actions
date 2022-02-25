@@ -1,4 +1,4 @@
-name: Build caddy
+name: Build Caddy
 
 on:
   workflow_dispatch:
@@ -47,4 +47,4 @@ jobs:
         file: ./caddy_linux-amd64
         asset_name: caddy_linux-amd64
         version: latest
-        tag: ${{ github.ref }}
+        tag: Caddy
