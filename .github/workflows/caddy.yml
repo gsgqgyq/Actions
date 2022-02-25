@@ -41,10 +41,10 @@ jobs:
     
     - name: Upload build to release
       uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./caddy/caddy_${version}_linux-amd64
-          asset_name: caddy_${version}_linux-amd64
-          version: latest
-          tag: ${{ github.ref }}
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./caddy/caddy_${version}_linux-amd64
+        asset_name: caddy_${version}_linux-amd64
+        version: latest
+        tag: ${{ github.ref }}
         
