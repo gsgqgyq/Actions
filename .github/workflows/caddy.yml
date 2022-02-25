@@ -1,4 +1,4 @@
-name: Build caddy-linux-amd64
+name: Build caddy
 
 on:
   workflow_dispatch:
@@ -8,12 +8,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@master    
     - name: install go
       uses: actions/setup-go@master
 
-    - name: xcaddy
+    - name: install xcaddy
+      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+    
+    - name: xcaddy caddy
       run: |
-        go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=amd64
         export GOOS=linux
@@ -28,6 +32,8 @@ jobs:
           --with github.com/mholt/caddy-webdav  \
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan  
+          
+          chmod +x caddy-linux-arm64
 
     - name: upload
       uses: actions/upload-artifact@master
