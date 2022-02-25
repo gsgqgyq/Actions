@@ -3,7 +3,7 @@
 xcaddy build ${version} --output ./caddy_${version} \
           --with github.com/caddy-dns/cloudflare \
           --with github.com/caddy-dns/alidns \
-          --with github.com/clevergo/caddy-dnspodcn \
+          --with clevergo.tech/caddy-dnspodcn \
           --with github.com/caddy-dns/dnspod \
           --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
           --with github.com/mholt/caddy-l4  \
