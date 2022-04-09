@@ -46,7 +46,7 @@ jobs:
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases" | jq -r 'map(select(.prerelease)) | first | .tag_name')
         export GOARCH=arm64
         export GOOS=linux
-        xcaddy build ${version} --output ./caddy_${version}_inux-arm64 \
+        xcaddy build ${version} --output ./caddy_${version}_linux-arm64 \
           --with github.com/caddyserver/transform-encoder \
           --with github.com/caddy-dns/cloudflare \
           --with github.com/caddy-dns/alidns \
