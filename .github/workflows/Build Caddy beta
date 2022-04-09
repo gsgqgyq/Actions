@@ -1,0 +1,72 @@
+name: Build Caddy bate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '1.18'
+        stable: true
+
+    - name: install xcaddy
+      run: |
+        sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/gpg.key' | sudo tee /etc/apt/trusted.gpg.d/caddy-xcaddy.asc
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-xcaddy.list
+        sudo apt update
+        sudo apt install xcaddy
+    
+    - name: xcaddy linux-amd64
+      run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=amd64
+        export GOOS=linux
+        xcaddy build v2.5.0-beta.1 --output ./caddy_v2.5.0-beta.1_linux-amd64 \
+          --with github.com/caddyserver/transform-encoder \
+          --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
+          --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
+          --with github.com/mholt/caddy-l4  \
+          --with github.com/mastercactapus/caddy2-proxyprotocol \
+          --with github.com/mholt/caddy-webdav  \
+          --with github.com/caddyserver/forwardproxy@caddy2  \
+          --with github.com/imgk/caddy-trojan 
+
+          
+    - name: xcaddy linux-arm64
+      run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=arm64
+        export GOOS=linux
+        xcaddy build v2.5.0-beta.1 --output ./caddy_v2.5.0-beta.1_linux-amd64 \
+          --with github.com/caddyserver/transform-encoder \
+          --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
+          --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
+          --with github.com/mholt/caddy-l4  \
+          --with github.com/mastercactapus/caddy2-proxyprotocol \
+          --with github.com/mholt/caddy-webdav  \
+          --with github.com/caddyserver/forwardproxy@caddy2  \
+          --with github.com/imgk/caddy-trojan 
+          
+          
+    - name: Upload build to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: Caddy2 v2.5.0-beta.1
+        body: Caddy2 v2.5.0-beta.1 + forwardproxy、trojan、proxyprotocol 等插件
+        file: ./caddy_*
+        overwrite: true
+        file_glob: true
+        
