@@ -1,4 +1,4 @@
-name: Build Caddy bate
+name: Build Caddy bata
 
 on:
   workflow_dispatch:
@@ -64,7 +64,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: Caddy2 beta
+        tag: Caddy2-Beta
         body: Caddy2 v2.5.0-beta.1 + forwardproxy、trojan、proxyprotocol 等插件
         file: ./caddy_*
         overwrite: true
