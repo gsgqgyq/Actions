@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v3
       with:
-        go-version: '1.18'
+        go-version: '1.17'
         stable: true
 
     - name: install xcaddy
@@ -39,7 +39,6 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan \
           --with github.com/caddyserver/transform-encoder \
-          --with github.com/lucas-clemente/quic-go@v0.27.0
           
     - name: xcaddy linux-arm64
       run: |
@@ -58,7 +57,6 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan \
           --with github.com/caddyserver/transform-encoder \
-          --with github.com/lucas-clemente/quic-go@v0.25.0
           
           
     - name: Upload build to release
