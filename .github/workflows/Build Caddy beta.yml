@@ -24,7 +24,7 @@ jobs:
     
     - name: xcaddy linux-amd64
       run: |
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r 'map(select(.prerelease)) | first | .tag_name')
         export GOARCH=amd64
         export GOOS=linux
         xcaddy build v2.5.0-beta.1 --output ./caddy_v2.5.0-beta.1_linux-amd64 \
@@ -43,7 +43,7 @@ jobs:
           
     - name: xcaddy linux-arm64
       run: |
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r 'map(select(.prerelease)) | first | .tag_name')
         export GOARCH=arm64
         export GOOS=linux
         xcaddy build v2.5.0-beta.1 --output ./caddy_v2.5.0-beta.1_linux-arm64 \
