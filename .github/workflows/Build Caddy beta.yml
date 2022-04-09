@@ -1,4 +1,4 @@
-name: Build Caddy beta
+name: Build Caddy-Beta
 
 on:
   workflow_dispatch:
