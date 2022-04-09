@@ -58,7 +58,7 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan \
           --with github.com/caddyserver/transform-encoder \
-          --with github.com/lucas-clemente/quic-go@v0.27.0
+          --with github.com/lucas-clemente/quic-go@v0.25.0
           
           
     - name: Upload build to release
