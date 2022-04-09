@@ -28,6 +28,7 @@ jobs:
         export GOARCH=amd64
         export GOOS=linux
         xcaddy build ${version} --output ./caddy_${version}_linux-amd64 \
+          --with github.com/caddyserver/transform-encoder
           --with github.com/caddy-dns/cloudflare \
           --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
