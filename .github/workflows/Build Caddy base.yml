@@ -1,4 +1,4 @@
-name: test Build Caddy
+name: Build Caddy base
 
 on:
   workflow_dispatch:
@@ -58,8 +58,8 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: Caddy2test
-        body: Caddy2 + DNS、Webdav、proxyprotocol 等插件
+        tag: Caddy2-base
+        body: Caddy2 + DNS、Webdav、proxyprotocol 等插件，不含 Caddy-Trojan 等
         file: ./caddy_*
         overwrite: true
         file_glob: true
