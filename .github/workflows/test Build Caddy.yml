@@ -29,11 +29,14 @@ jobs:
         export GOOS=linux
         xcaddy build ${version} --output ./caddy_${version}_linux-amd64 \
           --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/mholt/caddy-webdav  \
           --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
           --with github.com/mholt/caddy-l4  \
           --with github.com/mastercactapus/caddy2-proxyprotocol \
-          --with github.com/caddyserver/forwardproxy@caddy2  \
+          
           
     - name: xcaddy linux-arm64
       run: |
@@ -42,11 +45,13 @@ jobs:
         export GOOS=linux
         xcaddy build ${version} --output ./caddy_${version}_linux-arm64 \
           --with github.com/caddy-dns/cloudflare \
+          --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/dnspod \
+          --with github.com/mholt/caddy-webdav  \
           --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
           --with github.com/mholt/caddy-l4  \
           --with github.com/mastercactapus/caddy2-proxyprotocol \
-          --with github.com/caddyserver/forwardproxy@caddy2  \
           
           
     - name: Upload build to release
@@ -54,7 +59,7 @@ jobs:
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         tag: Caddy2test
-        body: Caddy2 + forwardproxy、proxyprotocol 等插件
+        body: Caddy2 + DNS、Webdav、proxyprotocol 等插件
         file: ./caddy_*
         overwrite: true
         file_glob: true
