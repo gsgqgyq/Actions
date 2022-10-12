@@ -8,19 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
-      with:
-        go-version: '1.18'
-        stable: true
+    - name: Checkout
+      uses: actions/checkout@v3
 
-    - name: install xcaddy
-      run: |
-        sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
-        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/gpg.key' | sudo tee /etc/apt/trusted.gpg.d/caddy-xcaddy.asc
-        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/xcaddy/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-xcaddy.list
-        sudo apt update
-        sudo apt install xcaddy
+    - name: Install go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+        check-latest: true
+    
+    - name: Install xcaddy
+      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
     - name: xcaddy linux-amd64
       run: |
@@ -38,8 +36,6 @@ jobs:
           --with github.com/mastercactapus/caddy2-proxyprotocol
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan \
-          --with github.com/caddyserver/transform-encoder \
-          --with github.com/lucas-clemente/quic-go@v0.25.0  \
 
           
     - name: xcaddy linux-arm64
@@ -58,8 +54,6 @@ jobs:
           --with github.com/mastercactapus/caddy2-proxyprotocol
           --with github.com/caddyserver/forwardproxy@caddy2  \
           --with github.com/imgk/caddy-trojan \
-          --with github.com/caddyserver/transform-encoder \
-          --with github.com/lucas-clemente/quic-go@v0.25.0  \
           
           
     - name: Upload build to release
