@@ -53,7 +53,7 @@ jobs:
           --with github.com/mholt/caddy-l4  \
           --with github.com/mastercactapus/caddy2-proxyprotocol
           --with github.com/caddyserver/forwardproxy@caddy2  \
-          --with github.com/imgk/caddy-trojan \
+          --with github.com/imgk/caddy-trojan
           
           
     - name: Upload build to release
