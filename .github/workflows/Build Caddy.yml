@@ -31,6 +31,8 @@ jobs:
           --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
           --with github.com/caddy-dns/dnspod \
+          --with github.com/caddy-dns/duckdns \
+          --with github.com/mholt/caddy-dynamicdns \
           --with github.com/mholt/caddy-webdav  \
           --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
           --with github.com/mastercactapus/caddy2-proxyprotocol  \
@@ -49,6 +51,8 @@ jobs:
           --with github.com/caddy-dns/alidns \
           --with clevergo.tech/caddy-dnspodcn \
           --with github.com/caddy-dns/dnspod \
+          --with github.com/caddy-dns/duckdns \
+          --with github.com/mholt/caddy-dynamicdns \
           --with github.com/mholt/caddy-webdav  \
           --with github.com/lucaslorentz/caddy-docker-proxy/plugin/  \
           --with github.com/mastercactapus/caddy2-proxyprotocol  \
