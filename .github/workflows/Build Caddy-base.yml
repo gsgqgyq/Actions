@@ -1,0 +1,54 @@
+name: Build Caddy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.19'
+        check-latest: true
+    
+    - name: Install xcaddy
+      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+    
+    - name: xcaddy linux-amd64
+      run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=amd64
+        export GOOS=linux
+        xcaddy build ${version} --output ./caddy_${version}_linux-amd64 \
+          --with github.com/caddy-dns/cloudflare \
+          --with clevergo.tech/caddy-dnspodcn
+          --with github.com/caddyserver/forwardproxy@caddy2        
+
+          
+    - name: xcaddy linux-arm64
+      run: |
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=arm64
+        export GOOS=linux
+        xcaddy build ${version} --output ./caddy_${version}_linux-arm64 \
+          --with github.com/caddy-dns/cloudflare \
+          --with clevergo.tech/caddy-dnspodcn
+          --with github.com/caddyserver/forwardproxy@caddy2
+          
+          
+    - name: Upload build to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: Caddy2-Base
+        body: Caddy2 + DNS、Webdav、proxyprotocol与trojan、forwardproxy等插件
+        file: ./caddy_*
+        overwrite: true
+        file_glob: true
+        
