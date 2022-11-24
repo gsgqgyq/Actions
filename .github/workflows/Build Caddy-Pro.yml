@@ -64,7 +64,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: Caddy2
+        tag: Caddy2-Pro
         body: Caddy2 + DNS、Webdav、proxyprotocol与trojan、forwardproxy等插件
         file: ./caddy_*
         overwrite: true
