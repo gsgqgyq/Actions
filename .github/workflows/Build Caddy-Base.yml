@@ -1,4 +1,4 @@
-name: Build Caddy
+name: Build Caddy-Base
 
 on:
   workflow_dispatch:
