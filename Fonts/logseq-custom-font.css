@@ -44,30 +44,28 @@
 /* 源流明體 思源宋體文学版 */
 @font-face { /* Regular */
   font-family: "GenRyuMin";
-  font-weight: 200 900;
+  font-weight: normal;
   font-style: normal;
-  font-stretch: normal;
   src: url("https://fastly.jsdelivr.net/gh/ButTaiwan/genryu-font@master/ttc/GenRyuMin-R.ttc");
 }
 @font-face { /* Bold */
   font-family: "GenRyuMin";
-  font-weight: 200 900;
+  font-weight: Bold;
   font-style: normal;
-  font-stretch: normal;
   src: url("https://fastly.jsdelivr.net/gh/ButTaiwan/genryu-font@master/ttc/GenRyuMin-B.ttc");
 }
 
 /* 霞鹜文楷繁体旧体 */
 @font-face { /* Regular */
   font-family: "LxgwWenkaiTC";
-  font-weight: 200 900;
+  font-weight: normal;
   font-style: normal;
   font-stretch: normal;
   src: url("https://fastly.jsdelivr.net/gh/lxgw/LxgwWenkaiTC@main/fonts/TTF/LXGWWenKaiTC-Regular.ttf");
 }
 @font-face { /* Bold */
   font-family: "LxgwWenkaiTC";
-  font-weight: 200 900;
+  font-weight: Bold;
   font-style: normal;
   font-stretch: normal;
   src: url("https://fastly.jsdelivr.net/gh/lxgw/LxgwWenkaiTC@main/fonts/TTF/LXGWWenKaiTC-Bold.ttf");
