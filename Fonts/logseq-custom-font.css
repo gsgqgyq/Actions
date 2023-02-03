@@ -38,7 +38,7 @@
   font-weight: 200 900;
   font-style: normal;
   font-stretch: normal;
-  src: url("https://fastly.jsdelivr.net/gh/adobe-fonts/source-han-serif@release/Variable/WOFF2/OTF/SourceHanSerifHC-VF.otf.woff2");
+  src: url("https://fastly.jsdelivr.net/gh/adobe-fonts/source-han-serif@release/Variable/WOFF2/OTF/SourceHanSerifHC-VF.otf.woff2") format('woff2');
 }
 
 /* 源流明體 思源宋體文学版 */
