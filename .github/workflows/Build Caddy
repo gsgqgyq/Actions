@@ -3,11 +3,6 @@ name: Build caddy
 on:
   workflow_dispatch:
 
-  release:
-    types: 
-      - 'prereleased' 
-      - 'published' 
-      - 'released'
 
 jobs:
   build:
