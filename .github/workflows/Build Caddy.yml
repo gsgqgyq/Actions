@@ -3,6 +3,11 @@ name: Build caddy
 on:
   workflow_dispatch:
 
+  release:
+    types: 
+      - 'prereleased' 
+      - 'published' 
+      - 'released'
 
 jobs:
   build:
@@ -99,7 +104,7 @@ jobs:
           --with github.com/mholt/caddy-dynamicdns \
           --with github.com/mholt/caddy-events-exec \
           --with github.com/WeidiDeng/caddy-cloudflare-ip \
-          --with github.com/caddyserver/forwardproxy@caddy2 \
+          --with github.com/caddyserver/forwardproxy@caddy2=github.com/sagernet/forwardproxy@latest \
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
           --output ./release-tmp/caddy
