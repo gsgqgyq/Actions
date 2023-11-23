@@ -1,0 +1,41 @@
+name: build sing-box
+
+env:
+  ENV_LINUX: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v2
+  ENV_WINDOWS: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v3
+  TAG_LINUX: with_wireguard,with_quic,with_ech,with_reality_server
+  TAG_WINDOWS: with_gvisor,with_clash_api,with_quic,with_utls,with_ech,with_reality_server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21.3'
+        cache: false
+
+    - name: git clone
+      run: |
+        git clone --depth 1 https://github.com/SagerNet/sing-box.git
+
+    - name: go build
+      run: | 
+        cd sing-box
+        go env -w ${{ env.ENV_LINUX }}
+        go build -tags ${{ env.TAG_LINUX }} -v -o sing-box -trimpath -ldflags "-s -w -buildid=" ./cmd/sing-box
+        go env -w ${{ env.ENV_WINDOWS }}
+        go build -tags ${{ env.TAG_WINDOWS }} -v -o sing-box.exe -trimpath -ldflags "-s -w -buildid=" ./cmd/sing-box
+
+    - name: Upload files
+      uses: actions/upload-artifact@v3
+      with:
+        name: sing-box
+        path: |
+          sing-box/sing-box
+          sing-box/sing-box.exe
