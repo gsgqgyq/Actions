@@ -41,31 +41,6 @@ jobs:
             release: true
           }
         - {
-            name: "linux-armv5",
-            GOARCH: arm,
-            GOARM: 5,
-            GOOS: linux,
-            release: true
-          }
-        - {
-            name: "linux-s390x",
-            GOARCH: s390x,
-            GOOS: linux,
-            release: true
-          }
-        - {
-            name: "freebsd-amd64",
-            GOARCH: amd64,
-            GOOS: freebsd,
-            release: true
-          }
-        - {
-            name: "freebsd-arm64",
-            GOARCH: arm64,
-            GOOS: linux,
-            release: true
-          }
-        - {
             name: "darwin-amd64",
             GOARCH: amd64,
             GOOS: darwin,
