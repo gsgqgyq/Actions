@@ -76,12 +76,12 @@ jobs:
       run: |
         mkdir release-ready
         cd ./release-tmp
-        tar -zcvf ../release-ready/caddy-${version}-${{ matrix.config.name }}.tar.gz *
+        tar -zcvf ../release-ready/caddy_${version}-${{ matrix.config.name }}.tar.gz *
 
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: caddy-${version}-${{ matrix.config.name }}
+        name: caddy_${version}-${{ matrix.config.name }}
         path: ./release-ready/*
         
     - name: Upload to GitHub Release 
