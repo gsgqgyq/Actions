@@ -66,7 +66,7 @@ jobs:
     - name: Install xcaddy
       run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
-    - name: Build caddy
+    - name: Build Caddy
       run: |
         mkdir release-tmp
         export GOARCH=${{ matrix.config.GOARCH }} 
