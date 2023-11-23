@@ -104,18 +104,14 @@ jobs:
         mkdir release-ready
         cd ./release-tmp
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-        tar -zcvf ../release-ready/caddy_${version}_${{ matrix.config.name }}.tar.gz *
-
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        path: ./release-ready/*
-        
+        tar -zcvf ../release-ready/caddy_${version}_${{ matrix.config.name }}.tar.gz *        
         
     - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/caddy_*
+        file: ./release-ready/*
         tag: Caddy2
         overwrite: true
+        file_glob: true
+        
