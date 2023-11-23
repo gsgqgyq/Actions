@@ -51,7 +51,6 @@ jobs:
     - name: Build Caddy
       run: |
         mkdir release-tmp
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=${{ matrix.config.GOARCH }} 
         export GOOS=${{ matrix.config.GOOS }} 
         ~/go/bin/xcaddy build \
@@ -66,7 +65,10 @@ jobs:
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
           --output ./release-tmp/caddy
-    
+          
+    - name: caddy version
+      run: export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+      
     - name: Calculate Hash
       run: |
         cd ./release-tmp || exit 1
@@ -76,12 +78,12 @@ jobs:
       run: |
         mkdir release-ready
         cd ./release-tmp
-        tar -zcvf ../release-ready/caddy_${version}-${{ matrix.config.name }}.tar.gz *
+        tar -zcvf ../release-ready/caddy_${{version}}_${{ matrix.config.name }}.tar.gz *
 
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: caddy_${version}-${{ matrix.config.name }}
+        name: caddy_${version}_${{ matrix.config.name }}
         path: ./release-ready/*
         
     - name: Upload to GitHub Release 
