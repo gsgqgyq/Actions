@@ -3,6 +3,10 @@ name: Build Caddy
 on:
   workflow_dispatch:
 
+  release:
+    types: 
+      - 'released'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,6 +14,18 @@ jobs:
       fail-fast: false
       matrix:
         config:
+        - {
+            name: "windows-386",
+            GOARCH: 386,
+            GOOS: windows,
+            release: true
+          }
+        - {
+            name: "windows-amd64",
+            GOARCH: amd64,
+            GOOS: windows,
+            release: true
+          }
         - {
             name: "linux-amd64",
             GOARCH: amd64,
@@ -48,7 +64,7 @@ jobs:
     - name: Install xcaddy
       run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
-    - name: Build Caddy
+    - name: Build caddy
       run: |
         mkdir release-tmp
         export GOARCH=${{ matrix.config.GOARCH }} 
@@ -61,36 +77,48 @@ jobs:
           --with github.com/mholt/caddy-dynamicdns \
           --with github.com/mholt/caddy-events-exec \
           --with github.com/WeidiDeng/caddy-cloudflare-ip \
-          --with github.com/caddyserver/forwardproxy@caddy2 \
+          --with github.com/caddyserver/forwardproxy@caddy2=github.com/sagernet/forwardproxy@latest \
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
           --output ./release-tmp/caddy
-          
-    - name: caddy version
-      run: export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-      
+
+    - name: Rename for Windows 
+      if: matrix.config.GOOS == 'windows'
+      run: |
+        mv ./release-tmp/caddy ./release-tmp/caddy.exe
+    
     - name: Calculate Hash
       run: |
         cd ./release-tmp || exit 1
         sha256sum * > sha256
-    
-    - name: Generate tar for other platform
+        
+
+    - name: Generate zip for Windows
+      if: matrix.config.GOOS == 'windows'
       run: |
         mkdir release-ready
         cd ./release-tmp
-        tar -zcvf ../release-ready/caddy_${{version}}_${{ matrix.config.name }}.tar.gz *
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        zip -r ../release-ready/caddy_${version}_${{ matrix.config.name }}.zip *
+    
+    - name: Generate tar for other platform
+      if: matrix.config.GOOS != 'windows'
+      run: |
+        mkdir release-ready
+        cd ./release-tmp
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        tar -zcvf ../release-ready/caddy_${version}_${{ matrix.config.name }}.tar.gz *
 
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: caddy_${version}_${{ matrix.config.name }}
         path: ./release-ready/*
         
-    - name: Upload to GitHub Release 
+        
+    - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/*
+        file: ./release-ready/caddy_*
         tag: Caddy2
         overwrite: true
-        file_glob: true
