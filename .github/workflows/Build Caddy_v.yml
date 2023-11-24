@@ -39,13 +39,6 @@ jobs:
             release: true
           }
         - {
-            name: "linux-armv5",
-            GOARCH: arm,
-            GOARM: 5,
-            GOOS: linux,
-            release: true
-          }
-        - {
             name: "darwin-amd64",
             GOARCH: amd64,
             GOOS: darwin,
@@ -87,52 +80,26 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2 \
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
-          --output ./release-tmp/caddy
+          --output ./release-tmp/caddy_${{ matrix.config.name }}
 
     - name: Rename for Windows 
       if: matrix.config.GOOS == 'windows'
       run: |
         mv ./release-tmp/caddy ./release-tmp/caddy.exe
-    
-    - name: Calculate Hash
-      run: |
-        cd ./release-tmp || exit 1
-        sha256sum * > sha256
 
-    - name: Generate zip for Windows
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        zip -r ../release-ready/caddy-${{ matrix.config.name }}.zip *
-    
-    - name: Generate tar for other platform
-      if: matrix.config.GOOS != 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        tar -zcvf ../release-ready/caddy-${{ matrix.config.name }}.tar.gz *
 
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
       with:
         name: caddy-${{ github.sha }}-${{ matrix.config.name }}
-        path: ./release-ready/*
+        path: ./release-tmp/*
         
-    - name: Upload to GitHub Release for Windows
+    - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
       if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS == 'windows'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/caddy-${{ matrix.config.name }}.zip
+        file: ./release-tmp/*
         tag: ${{ github.ref }}
         overwrite: true
-        
-    - name: Upload to GitHub Release for other platform
-      uses: svenstaro/upload-release-action@v2
-      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS != 'windows'
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-ready/caddy-${{ matrix.config.name }}.tar.gz
-        tag: ${{ github.ref }}
-        overwrite: true
+
