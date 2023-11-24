@@ -62,6 +62,27 @@ jobs:
       run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
     - name: Build caddy
+      if: matrix.config.GOOS == 'windows'
+      run: |
+        mkdir release-tmp
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+        export GOARCH=${{ matrix.config.GOARCH }} 
+        export GOOS=${{ matrix.config.GOOS }} 
+        ~/go/bin/xcaddy build \
+          --with github.com/mholt/caddy-l4 \
+          --with github.com/caddy-dns/cloudflare \
+          --with clevergo.tech/caddy-dnspodcn \
+          --with github.com/caddy-dns/duckdns \
+          --with github.com/mholt/caddy-dynamicdns \
+          --with github.com/mholt/caddy-events-exec \
+          --with github.com/WeidiDeng/caddy-cloudflare-ip \
+          --with github.com/caddyserver/forwardproxy@caddy2 \
+          --with github.com/imgk/caddy-trojan \
+          --with github.com/mholt/caddy-webdav \
+          --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}.exe
+
+    - name: Build caddy
+      if: matrix.config.GOOS != 'windows'
       run: |
         mkdir release-tmp
         export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
@@ -79,11 +100,6 @@ jobs:
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
           --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}
-
-    - name: Rename for Windows 
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mv ./release-tmp/caddy_${version}_${{ matrix.config.name }} ./release-tmp/caddy_${version}_${{ matrix.config.name }}.exe
         
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
