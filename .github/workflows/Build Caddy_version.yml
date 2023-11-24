@@ -92,12 +92,20 @@ jobs:
       with:
         name: caddy-${{ github.sha }}-${{ matrix.config.name }}
         path: ./release-tmp/*
-        
-    - name: Upload to GitHub Release
+
+    - name: Upload to GitHub Release for windows
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-tmp/*
+        file: ./release-tmp/caddy_{{ matrix.config.name }}.exe
+        tag: ${{ github.ref }}
+        overwrite: true
+        
+    - name: Upload to GitHub Release for other
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ./release-tmp/caddy_{{ matrix.config.name }}
         tag: ${{ github.ref }}
         overwrite: true
 
