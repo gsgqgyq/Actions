@@ -64,6 +64,7 @@ jobs:
     - name: Build caddy
       run: |
         mkdir release-tmp
+        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
         export GOARCH=${{ matrix.config.GOARCH }} 
         export GOOS=${{ matrix.config.GOOS }} 
         ~/go/bin/xcaddy build \
@@ -77,35 +78,14 @@ jobs:
           --with github.com/caddyserver/forwardproxy@caddy2 \
           --with github.com/imgk/caddy-trojan \
           --with github.com/mholt/caddy-webdav \
-          --output ./release-tmp/caddy
+          --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}
 
     - name: Rename for Windows 
       if: matrix.config.GOOS == 'windows'
       run: |
         mv ./release-tmp/caddy ./release-tmp/caddy.exe
-    
-    - name: Calculate Hash
-      run: |
-        cd ./release-tmp || exit 1
-        sha256sum * > sha256
-        
 
-    - name: Generate zip for Windows
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-        zip -r ../release-ready/caddy_${version}_${{ matrix.config.name }}.zip *
-    
-    - name: Generate tar for other platform
-      if: matrix.config.GOOS != 'windows'
-      run: |
-        mkdir release-ready
-        cd ./release-tmp
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-        tar -zcvf ../release-ready/caddy_${version}_${{ matrix.config.name }}.tar.gz *        
-        
+      
     - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
       with:
