@@ -95,7 +95,6 @@ jobs:
         
     - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
-      if: github.event_name == 'release' && matrix.config.release && matrix.config.GOOS == 'windows'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./release-tmp/*
