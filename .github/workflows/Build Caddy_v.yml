@@ -85,7 +85,7 @@ jobs:
     - name: Rename for Windows 
       if: matrix.config.GOOS == 'windows'
       run: |
-        mv ./release-tmp/caddy ./release-tmp/caddy.exe
+        mv ./release-tmp/caddy_${{ matrix.config.name }} ./release-tmp/caddy_${{ matrix.config.name }}.exe
 
 
     - name: Upload a Build Artifact
