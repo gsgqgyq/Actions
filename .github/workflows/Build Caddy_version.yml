@@ -95,6 +95,7 @@ jobs:
 
     - name: Upload to GitHub Release for windows
       uses: svenstaro/upload-release-action@v2
+      if: matrix.config.GOOS == 'windows'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./release-tmp/caddy_{{ matrix.config.name }}.exe
@@ -103,6 +104,7 @@ jobs:
         
     - name: Upload to GitHub Release for other
       uses: svenstaro/upload-release-action@v2
+      if: matrix.config.GOOS != 'windows'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./release-tmp/caddy_{{ matrix.config.name }}
