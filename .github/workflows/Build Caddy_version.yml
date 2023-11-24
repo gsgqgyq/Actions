@@ -1,4 +1,4 @@
-name: Caddy_version
+name: Build Caddy_version
 
 on:
   workflow_dispatch:
