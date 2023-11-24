@@ -13,7 +13,7 @@ jobs:
         config:
         - {
             name: "windows-arm64",
-            GOARCH: 386,
+            GOARCH: arm64,
             GOOS: windows,
             release: true
           }
