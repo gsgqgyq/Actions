@@ -87,7 +87,6 @@ jobs:
       run: |
         mv ./release-tmp/caddy_${{ matrix.config.name }} ./release-tmp/caddy_${{ matrix.config.name }}.exe
 
-
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3
       with:
