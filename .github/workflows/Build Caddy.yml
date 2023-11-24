@@ -84,7 +84,12 @@ jobs:
       if: matrix.config.GOOS == 'windows'
       run: |
         mv ./release-tmp/caddy ./release-tmp/caddy.exe
-
+        
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: caddy-${{ github.sha }}-${{ matrix.config.name }}
+        path: ./release-tmp/*
       
     - name: Upload to GitHub Release
       uses: svenstaro/upload-release-action@v2
