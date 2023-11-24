@@ -93,21 +93,11 @@ jobs:
         name: caddy-${{ github.sha }}-${{ matrix.config.name }}
         path: ./release-tmp/*
 
-    - name: Upload to GitHub Release for windows
+    - name: Upload to GitHub Release 
       uses: svenstaro/upload-release-action@v2
-      if: matrix.config.GOOS == 'windows'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-tmp/caddy_{{ matrix.config.name }}.exe
+        file: ./release-tmp/*
         tag: ${{ github.ref }}
         overwrite: true
         
-    - name: Upload to GitHub Release for other
-      uses: svenstaro/upload-release-action@v2
-      if: matrix.config.GOOS != 'windows'
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-tmp/caddy_{{ matrix.config.name }}
-        tag: ${{ github.ref }}
-        overwrite: true
-
