@@ -9,6 +9,7 @@ payload:
 
 
 #### 其他引用
+#### 其他引用正则替换，匹配：`^(?!#)\S.*\S$`，替换 `  - $&`
 # stash、clashx 已引用规则 https://github.com/Coldvvater/Mononoke/blob/master/Stash/RuleSet/AI.list
 # > OpenAI ChatGPT & ChatGPT Voice
   - DOMAIN,api.statsig.com
