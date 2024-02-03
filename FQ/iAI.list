@@ -3,7 +3,8 @@
 DOMAIN-SUFFIX,coze.com
 DOMAIN,bytegate.byteintlapi.com
 DOMAIN,starling-oversea.byteoversea.com
-DOMAIN,vcs-va.byteoversea.com
+DOMAIN-SUFFIX,yhgfb-static.com
+DOMAIN-SUFFIX,ttwstatic.com
 
 
 #### 其他引用
