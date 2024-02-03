@@ -1,8 +1,9 @@
 #### 自己维护
 # coze
 DOMAIN-SUFFIX,coze.com
-DOMAIN-SUFFIX,byteoversea.com
-DOMAIN-SUFFIX,byteintlapi.com
+DOMAIN,bytegate.byteintlapi.com
+DOMAIN,starling-oversea.byteoversea.com
+DOMAIN,vcs-va.byteoversea.com
 
 
 #### 其他引用
