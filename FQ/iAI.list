@@ -7,6 +7,9 @@ DOMAIN-SUFFIX,ciciai.com
 #DOMAIN-SUFFIX,yhgfb-static.com
 #DOMAIN-SUFFIX,ttwstatic.com
 
+# perplexity.ai
+DOMAIN-SUFFIX,perplexity.ai
+
 
 #### 其他引用
 # stash、clashx 已引用规则 https://github.com/Coldvvater/Mononoke/blob/master/Stash/RuleSet/AI.list
