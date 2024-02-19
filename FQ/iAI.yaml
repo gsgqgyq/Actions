@@ -2,16 +2,20 @@ payload:
 #### 自己维护
 # coze
   - DOMAIN-SUFFIX,coze.com
+  - DOMAIN-SUFFIX,ciciai.com
   #- DOMAIN,bytegate.byteintlapi.com
   #- DOMAIN,starling-oversea.byteoversea.com
   #- DOMAIN-SUFFIX,yhgfb-static.com
   #- DOMAIN-SUFFIX,ttwstatic.com
 
+# perplexity.ai
+  - DOMAIN-SUFFIX,perplexity.ai
+
 
 #### 其他引用
 #### 其他引用正则替换，匹配：`^(?!#)\S.*\S$`，替换 `  - $&`
 # stash、clashx 已引用规则 https://github.com/Coldvvater/Mononoke/blob/master/Stash/RuleSet/AI.list
-# > OpenAI ChatGPT & ChatGPT Voice
+  # > OpenAI ChatGPT & ChatGPT Voice
   - DOMAIN,api.statsig.com
   - DOMAIN,browser-intake-datadoghq.com
   - DOMAIN,cdn.openai.com
@@ -68,22 +72,22 @@ payload:
   - IP-CIDR6,2001:19f0:7001:1149:5400:4ff:feac:a0b3/128,no-resolve
   - IP-CIDR6,2001:19f0:7001:8e6:5400:4ff:feab:b953/128,no-resolve
   - IP-CIDR6,2401:c080:1000:47c5:5400:4ff:feab:f724/128,no-resolve
-#IP-ASN,14061,no-resolve
-#IP-ASN,20473,no-resolve
+  #IP-ASN,14061,no-resolve
+  #IP-ASN,20473,no-resolve
 
-# > Arc浏览器 Ask on page
+  # > Arc 浏览器 Ask on page
   - DOMAIN,open-ai-chat-omega.vercel.app
 
-# > New Bing
+  # > New Bing
   - DOMAIN-SUFFIX,bing.com
   - DOMAIN-SUFFIX,bingapis.com
 
-# > Microsoft Copilot App
+  # > Microsoft Copilot App 
   - DOMAIN,api.msn.com
   - DOMAIN,assets.msn.com
   - DOMAIN,copilot.microsoft.com
   - DOMAIN,dealczars.bing-shopping.microsoft-falcon.io
-#DOMAIN,eas.outlook.com
+  #- DOMAIN,eas.outlook.com
   - DOMAIN,edgeservices.bing.com
   - DOMAIN,functional.events.data.microsoft.com
   - DOMAIN,gateway.bingviz.microsoftapp.net
@@ -97,16 +101,15 @@ payload:
   - DOMAIN,sapphire.api.microsoftapp.net
   - DOMAIN-SUFFIX,edge.microsoft.com
 
-# > Claude
+  # > Claude
   - DOMAIN,cdn.usefathom.com
   - DOMAIN-SUFFIX,anthropic.com
   - DOMAIN-SUFFIX,claude.ai
 
-# > Gemini
-  - DOMAIN, generativelanguage.googleapis.com
-
-# > Bard
+  # > Gemini
   - DOMAIN-SUFFIX,bard.google.com
+  - DOMAIN,gemini.google.com
+  - DOMAIN,generativelanguage.googleapis.com
 
 # https://gitlab.com/lodepuly/vpn_tool/-/raw/master/Tool/Loon/Rule/Copilot.list
 # Author: 可莉🅥
