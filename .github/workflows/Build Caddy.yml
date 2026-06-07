@@ -100,7 +100,7 @@ jobs:
           --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}
         
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: caddy-${{ github.sha }}-${{ matrix.config.name }}
         path: ./release-tmp/*
