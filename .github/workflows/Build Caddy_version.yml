@@ -98,16 +98,15 @@ jobs:
         export GOOS=${{ matrix.config.GOOS }} 
         ~/go/bin/xcaddy build \
           --with github.com/caddyserver/forwardproxy \
-          --with github.com/mholt/caddy-webdav \
-          --with github.com/WeidiDeng/caddy-cloudflare-ip \
-          --with github.com/xcaddyplugins/caddy-trusted-cloudfront \
           --with github.com/caddy-dns/cloudflare \
-          --with github.com/caddy-dns/duckdns \
           --with github.com/caddy-dns/tencentcloud \
+          --with github.com/caddy-dns/duckdns \
+          --with github.com/mholt/caddy-dynamicdns \
           --with github.com/mholt/caddy-events-exec \
           --with github.com/mholt/caddy-l4 \
+          --with github.com/mholt/caddy-webdav \
           --with github.com/caddyserver/jsonc-adapter \
-          --output ./release-tmp/caddy
+          --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}
 
     - name: Rename for Windows 
       if: matrix.config.GOOS == 'windows'
