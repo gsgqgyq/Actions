@@ -3,114 +3,87 @@ name: Build Caddy
 on:
   workflow_dispatch:
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        config:
-        - {
-            name: "windows-arm64",
-            GOARCH: arm64,
-            GOOS: windows,
-            release: true
-          }
-        - {
-            name: "windows-amd64",
-            GOARCH: amd64,
-            GOOS: windows,
-            release: true
-          }
-        - {
-            name: "linux-amd64",
-            GOARCH: amd64,
-            GOOS: linux,
-            release: true
-          }
-        - {
-            name: "linux-arm64",
-            GOARCH: arm64,
-            GOOS: linux,
-            release: true
-          }
-        - {
-            name: "darwin-amd64",
-            GOARCH: amd64,
-            GOOS: darwin,
-            release: true
-          }
-        - {
-            name: "darwin-arm64",
-            GOARCH: arm64,
-            GOOS: darwin,
-            release: true
-          }
+        include:
+          - { goos: windows, goarch: arm64, name: windows-arm64 }
+          - { goos: windows, goarch: amd64, name: windows-amd64 }
+          - { goos: linux,   goarch: amd64, name: linux-amd64   }
+          - { goos: linux,   goarch: arm64, name: linux-arm64   }
+          - { goos: darwin,  goarch: amd64, name: darwin-amd64  }
+          - { goos: darwin,  goarch: arm64, name: darwin-arm64  }
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.26'
-        check-latest: true
-    
-    - name: Install xcaddy
-      run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-    
-    - name: Build caddy
-      if: matrix.config.GOOS == 'windows'
-      run: |
-        mkdir release-tmp
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-        export GOARCH=${{ matrix.config.GOARCH }} 
-        export GOOS=${{ matrix.config.GOOS }} 
-        ~/go/bin/xcaddy build \
-          --with github.com/caddy-dns/cloudflare \
-          --with clevergo.tech/caddy-dnspodcn \
-          --with github.com/caddy-dns/duckdns \
-          --with github.com/mholt/caddy-dynamicdns \
-          --with github.com/mholt/caddy-events-exec \
-          --with github.com/mholt/caddy-l4 \
-          --with github.com/WeidiDeng/caddy-cloudflare-ip \
-          --with github.com/caddyserver/forwardproxy \
-          --with github.com/mholt/caddy-webdav \
-          --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}.exe
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'  # 使用当前稳定版本，可根据需要调整
+          check-latest: true
 
-    - name: Build caddy
-      if: matrix.config.GOOS != 'windows'
-      run: |
-        mkdir release-tmp
-        export version=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
-        export GOARCH=${{ matrix.config.GOARCH }} 
-        export GOOS=${{ matrix.config.GOOS }} 
-        ~/go/bin/xcaddy build \
-          --with github.com/caddyserver/forwardproxy \
-          --with github.com/caddy-dns/cloudflare \
-          --with github.com/caddy-dns/tencentcloud \
-          --with github.com/caddy-dns/duckdns \
-          --with github.com/mholt/caddy-dynamicdns \
-          --with github.com/mholt/caddy-events-exec \
-          --with github.com/mholt/caddy-l4 \
-          --with github.com/mholt/caddy-webdav \
-          --with github.com/caddyserver/jsonc-adapter \
-          --output ./release-tmp/caddy_${version}_${{ matrix.config.name }}
-        
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: caddy-${{ github.sha }}-${{ matrix.config.name }}
-        path: ./release-tmp/*
-      
-    - name: Upload to GitHub Release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./release-tmp/*
-        tag: Caddy2
-        overwrite: true
-        file_glob: true
-        
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Cache xcaddy
+        id: cache-xcaddy
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/xcaddy
+          key: ${{ runner.os }}-xcaddy-latest
+
+      - name: Install xcaddy
+        if: steps.cache-xcaddy.outputs.cache-hit != 'true'
+        run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+
+      - name: Get latest Caddy version
+        id: get_version
+        run: |
+          version=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | jq -r .tag_name)
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Prepare release directory
+        run: mkdir -p release-tmp
+
+      - name: Build Caddy
+        run: |
+          ~/go/bin/xcaddy build \
+            --goos ${{ matrix.goos }} \
+            --goarch ${{ matrix.goarch }} \
+            --with github.com/caddyserver/forwardproxy \
+            --with github.com/caddy-dns/cloudflare \
+            --with github.com/caddy-dns/tencentcloud \
+            --with github.com/caddy-dns/duckdns \
+            --with github.com/mholt/caddy-dynamicdns \
+            --with github.com/mholt/caddy-events-exec \
+            --with github.com/mholt/caddy-l4 \
+            --with github.com/mholt/caddy-webdav \
+            --with github.com/caddyserver/jsonc-adapter \
+            --output ./release-tmp/caddy_${{ steps.get_version.outputs.version }}_${{ matrix.name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: caddy-${{ github.sha }}-${{ matrix.name }}
+          path: ./release-tmp/*
+
+      - name: Upload to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./release-tmp/*
+          tag: Caddy2
+          overwrite: true
+          file_glob: true
