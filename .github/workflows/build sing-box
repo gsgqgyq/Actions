@@ -1,41 +1,72 @@
-name: build sing-box
-
-env:
-  ENV_LINUX: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v2
-  ENV_WINDOWS: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v3
-  TAG_LINUX: with_wireguard,with_quic,with_ech,with_reality_server
-  TAG_WINDOWS: with_gvisor,with_clash_api,with_quic,with_utls,with_ech,with_reality_server
+name: Build sing-box (gRPC)
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (tag 或 commit, 留空用 main)'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 0 1 * *'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { go: amd64, name: amd64 }
+          - { go: arm64, name: arm64 }
 
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.3'
-        cache: false
+      # sing-box 1.11+ 需要 Go 1.23.1+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
 
-    - name: git clone
-      run: |
-        git clone --depth 1 https://github.com/SagerNet/sing-box.git
+      - uses: actions/checkout@v4
+        with:
+          repository: SagerNet/sing-box
+          ref: ${{ github.event.inputs.version || 'main' }}
+          fetch-depth: 1
 
-    - name: go build
-      run: | 
-        cd sing-box
-        go env -w ${{ env.ENV_LINUX }}
-        go build -tags ${{ env.TAG_LINUX }} -v -o sing-box -trimpath -ldflags "-s -w -buildid=" ./cmd/sing-box
-        go env -w ${{ env.ENV_WINDOWS }}
-        go build -tags ${{ env.TAG_WINDOWS }} -v -o sing-box.exe -trimpath -ldflags "-s -w -buildid=" ./cmd/sing-box
+      - name: Get version
+        id: ver
+        run: |
+          V="${{ github.event.inputs.version }}"
+          if [ -z "$V" ]; then
+            V=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+          fi
+          echo "version=$V" >> $GITHUB_OUTPUT
 
-    - name: Upload files
-      uses: actions/upload-artifact@v3
-      with:
-        name: sing-box
-        path: |
-          sing-box/sing-box
-          sing-box/sing-box.exe
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch.go }} \
+            go build -v -trimpath \
+              -ldflags "-s -w \
+                -X github.com/sagernet/sing-box/constant.Version=${{ steps.ver.outputs.version }} \
+                -X 'internal/godebug.defaultGODEBUG=multipathtcp=0'" \
+              -tags "with_grpc,with_quic,with_utls,with_acme,with_dhcp,with_acme,with_clash_api,with_ccm,with_ocm,with_naive_outbound,with_cloudflared" \
+              -o sing-box ./cmd/sing-box
+
+      - name: Strip + pack
+        run: |
+          strip sing-box 2>/dev/null || true
+          tar czf sing-box-linux-${{ matrix.arch.name }}-${{ steps.ver.outputs.version }}.tar.gz sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box-linux-${{ matrix.arch.name }}
+          path: sing-box-linux-${{ matrix.arch.name }}-*.tar.gz
+
+      - name: Checksum
+        run: sha256sum sing-box-linux-${{ matrix.arch.name }}-*.tar.gz > checksum-${{ matrix.arch.name }}.txt
+
+      - name: Upload checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.arch.name }}
+          path: checksum-${{ matrix.arch.name }}.txt
