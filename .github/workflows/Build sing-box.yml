@@ -134,7 +134,7 @@ jobs:
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
 
       - name: Upload artifact
-        uses: actions/artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
