@@ -80,21 +80,20 @@ jobs:
       matrix:
         include:
           - { goos: linux,   goarch: amd64, name: linux-amd64,   os: ubuntu-latest  }
-          - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest  }
-          - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest }
-          - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-latest }
-          # 修复：将 macos-15-intel 变更为官方支持的 macos-13 (Intel 架构)
-          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-13       }
-          - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest   }
+          - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-24.04-arm  }
+          - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest  }
+          - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-11-arm  }
+          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-26-intel  }
+          - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest  }
     steps:
       - name: Checkout sing-box code
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
         with:
           repository: 'SagerNet/sing-box'
           ref: ${{ needs.check-version.outputs.version }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@main
         with:
           go-version: 'stable'
           check-latest: true
@@ -132,7 +131,7 @@ jobs:
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
@@ -144,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@main
         with:
           path: ./all-releases
           pattern: sing-box-*
@@ -157,7 +156,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Upload to GitHub Release
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@main
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./all-releases/*
