@@ -14,7 +14,6 @@ permissions:
   contents: write
 
 concurrency:
-  # 优化：添加 -grpc 后缀，避免与同仓库其他构建 workflow 互相阻塞
   group: sing-box-grpc-auto-build
   cancel-in-progress: false
 
@@ -53,16 +52,15 @@ jobs:
           # 自动模式：获取上游最新正式版
           UPSTREAM_VERSION=$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)
           
-          # 优化：增加 API 返回值校验，防止因限流或网络问题导致误触发
           if [ -z "$UPSTREAM_VERSION" ] || [ "$UPSTREAM_VERSION" = "null" ]; then
             echo "❌ 获取上游版本失败，请检查网络或 API 限制"
             exit 1
           fi
           
-          # 检查自己仓库是否已有该版本的 Release (HTTP 404 表示未发布)
+          # 修复：检查本地 Release 时，Tag 前缀必须与 Stage 3 保持一致 (sing-box-${UPSTREAM_VERSION})
           HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
             -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${UPSTREAM_VERSION}")
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/sing-box-${UPSTREAM_VERSION}")
           
           echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
           
@@ -88,7 +86,6 @@ jobs:
           - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest  }
           - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest }
           - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-latest }
-          # 优化：macos-13 已下线，替换为 macos-15-intel
           - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-15-intel }
           - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest   }
     steps:
@@ -101,7 +98,6 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          # 优化：使用 stable 确保兼容最新版 sing-box 的 go.mod 要求
           go-version: 'stable'
           check-latest: true
           cache: true
@@ -111,7 +107,6 @@ jobs:
 
       - name: Build sing-box
         env:
-          # 优化：移除了无效的 badlinkname 和 tfogo_checklinkname0
           BASE_TAGS: with_quic,with_grpc,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_gvisor,with_tailscale,with_ccm,with_naive_outbound,with_cloudflared
         run: |
           export GOOS=${{ matrix.goos }}
@@ -129,8 +124,6 @@ jobs:
           fi
           
           VERSION="${{ needs.check-version.outputs.version }}"
-          # 修复：-checklinkname=0 是链接器标志，必须放在 -ldflags 中
-          # 优化：注入 sing-box 官方版本号变量
           LDFLAGS="-s -w -checklinkname=0 -X 'github.com/sagernet/sing-box/constant.Version=$VERSION'"
           
           EXT=""
@@ -138,11 +131,10 @@ jobs:
             EXT=".exe"
           fi
           
-          # 执行编译
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/artifact@v4
         with:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
@@ -160,19 +152,20 @@ jobs:
           pattern: sing-box-*
           merge-multiple: true
 
-      # 优化：新增生成 SHA256 校验和步骤
+      # 优化：精准匹配编译出的二进制文件，避免校验和文件计算自身
       - name: Generate SHA256 Checksums
         run: |
           cd ./all-releases
-          sha256sum * > SHA256SUMS.txt
+          sha256sum sing-box_* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      # 修复：将 tag 中的空格替换为连字符 -
       - name: Upload to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./all-releases/*
-          tag: sing-box ${{ needs.check-version.outputs.version }}
+          tag: sing-box-${{ needs.check-version.outputs.version }}
           overwrite: true
           file_glob: true
           body: |
@@ -185,20 +178,19 @@ jobs:
             
             *包含 gRPC 及全量常用特性，构建时已注入官方版本号。*
 
-      # ========== 新增：仅保留最近 5 个 sing-box Release ==========
+      # ========== 优化与修复：仅保留最近 5 个 sing-box Release ==========
       - name: Keep only latest 5 sing-box releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 获取所有以 "sing-box " 开头的 Release，分页保证完整
-          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '.[] | select(.tag_name | startswith("sing-box ")) | {id: .id, tag: .tag_name, created: .created_at}')
+          # 修复：匹配前缀改为 "sing-box-"
+          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}')
           
           if [ -z "$releases" ]; then
             echo "No sing-box releases found."
             exit 0
           fi
           
-          # 按创建时间降序排列（最新的在前），保留前 5 个，删除其余
           old_ids=$(echo "$releases" | jq -s 'sort_by(.created) | reverse | .[5:][] | .id')
           
           if [ -n "$old_ids" ]; then
