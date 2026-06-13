@@ -2,10 +2,24 @@ name: Build Caddy
 
 on:
   workflow_dispatch:
+    # ✨ 独家优化：支持手动指定版本编译，留空则默认获取最新版
+    inputs:
+      caddy_version:
+        description: '指定编译的 Caddy 版本 (例如 v2.7.6)，留空则自动获取最新稳定版'
+        required: false
+        default: ''
+
+# 显式赋予 GITHUB_TOKEN 写入权限
+permissions:
+  contents: write
 
 jobs:
   build:
+    name: Build (${{ matrix.name }})
     runs-on: ubuntu-latest
+    # ✨ 独家优化：将获取到的版本号导出为 Job 输出，供后面的 publish 任务消费
+    outputs:
+      caddy_version: ${{ steps.get_version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -19,49 +33,45 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@main
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-          check-latest: true
+          go-version: 'stable'
 
-      - name: Cache Go modules
-        uses: actions/cache@main
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Cache xcaddy
-        id: cache-xcaddy
-        uses: actions/cache@main
-        with:
-          path: ~/go/bin/xcaddy
-          key: ${{ runner.os }}-xcaddy-latest
-
-      - name: Install xcaddy
-        if: steps.cache-xcaddy.outputs.cache-hit != 'true'
-        run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-
-      - name: Get latest Caddy version
+      - name: Get Caddy version
         id: get_version
         run: |
-          version=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | jq -r .tag_name)
+          # 优先使用手动输入的版本，否则通过 API 抓取最新稳定版
+          if [ -n "${{ github.event.inputs.caddy_version }}" ]; then
+            version="${{ github.event.inputs.caddy_version }}"
+          else
+            version=$(curl -s -H "Authorization: Bearer ${{ github.token }}" \
+              https://api.github.com/repos/caddyserver/caddy/releases/latest | jq -r .tag_name)
+          fi
+          
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "Failed to fetch Caddy version" >&2
+            exit 1
+          fi
           echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Install xcaddy
+        run: go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
       - name: Prepare release directory
         run: mkdir -p release-tmp
 
       - name: Build Caddy
         run: |
+          export CGO_ENABLED=0
           export GOOS=${{ matrix.goos }}
           export GOARCH=${{ matrix.goarch }}
-          ~/go/bin/xcaddy build \
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          
+          $(go env GOPATH)/bin/xcaddy build ${{ steps.get_version.outputs.version }} \
             --with github.com/caddyserver/forwardproxy \
             --with github.com/caddy-dns/cloudflare \
             --with github.com/caddy-dns/tencentcloud \
@@ -71,19 +81,51 @@ jobs:
             --with github.com/mholt/caddy-l4 \
             --with github.com/mholt/caddy-webdav \
             --with github.com/caddyserver/jsonc-adapter \
-            --output ./release-tmp/caddy_${{ steps.get_version.outputs.version }}_${{ matrix.name }}
+            --output ./release-tmp/caddy_${{ steps.get_version.outputs.version }}_${{ matrix.name }}${EXT}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
-          name: caddy-${{ github.sha }}-${{ matrix.name }}
+          name: caddy-${{ matrix.name }}
           path: ./release-tmp/*
+
+  publish:
+    name: Upload to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-assets
+          merge-multiple: true
 
       - name: Upload to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./release-tmp/*
-          tag: Caddy2
-          overwrite: true
+          repo_token: ${{ github.token }} # 推荐使用更标准的 github.token 上下文
+          file: ./release-assets/*
           file_glob: true
+          overwrite: true
+          tag: caddy-latest
+          
+          # ✨ 独家优化：Release 标题现在会自动带上真实的 Caddy 版本号
+          release_name: "Caddy 定制版最新编译 (${{ needs.build.outputs.caddy_version }})"
+          body: |
+            ### 📦 编译说明
+            这是一个集成了常用 DNS 及网络插件的 Caddy 自定义版本。
+            
+            - **Caddy 核心版本**: `${{ needs.build.outputs.caddy_version }}`
+            - **更新机制**: 滚动更新（每次运行本工作流均会覆盖此 `caddy-latest` 页面下的二进制文件）
+            - **触发编译的 SHA**: `${{ github.sha }}`
+            
+            ### 🔌 已集成插件列表
+            * `github.com/caddyserver/forwardproxy`
+            * `github.com/caddy-dns/cloudflare`
+            * `github.com/caddy-dns/tencentcloud`
+            * `github.com/caddy-dns/duckdns`
+            * `github.com/mholt/caddy-dynamicdns`
+            * `github.com/mholt/caddy-events-exec`
+            * `github.com/mholt/caddy-l4`
+            * `github.com/mholt/caddy-webdav`
+            * `github.com/caddyserver/jsonc-adapter`
