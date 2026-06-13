@@ -86,13 +86,13 @@ jobs:
           - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest,  cgo: 1, tags_ext: "" }
     steps:
       - name: Checkout sing-box code
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
         with:
           repository: 'SagerNet/sing-box'
           ref: ${{ needs.check-version.outputs.version }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@main
         with:
           go-version: 'stable'
           check-latest: true
@@ -121,7 +121,7 @@ jobs:
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
@@ -132,8 +132,12 @@ jobs:
     needs: [check-version, build]
     runs-on: ubuntu-latest
     steps:
+      # ✨ 只需要在这里加上这一步，克隆仓库获取 Git 上下文
+      - name: Checkout repository
+        uses: actions/checkout@main
+
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@main
         with:
           path: ./all-releases
           pattern: sing-box-*
