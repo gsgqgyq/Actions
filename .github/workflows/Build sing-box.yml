@@ -7,8 +7,9 @@ on:
         description: '手动强制编译某个版本 (例如 v1.11.0，留空则自动检测)'
         required: false
         default: ''
-  schedule:
-    - cron: '0 */6 * * *'
+  schedule:  
+    - cron: '0 0 1/3 * *'
+
 
 permissions:
   contents: write
@@ -57,19 +58,15 @@ jobs:
             exit 1
           fi
           
-          # 修复：检查本地 Release 时，Tag 前缀必须与 Stage 3 保持一致 (sing-box-${UPSTREAM_VERSION})
-          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/sing-box-${UPSTREAM_VERSION}")
-          
           echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
           
-          if [ "$HTTP_STATUS" = "404" ]; then
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "🚀 检测到官方发布了新正式版 $UPSTREAM_VERSION，触发自动编译！"
-          else
+          # 优化：使用 gh CLI 代替 curl，更优雅地检查本仓库是否已存在该 Release
+          if gh release view "sing-box-${UPSTREAM_VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "✨ 当前最新正式版 $UPSTREAM_VERSION 已编译过，无需重复编译。"
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "🚀 检测到官方发布了新正式版 $UPSTREAM_VERSION，触发自动编译！"
           fi
 
   # ================= STAGE 2: 并行编译 =================
@@ -86,7 +83,8 @@ jobs:
           - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest  }
           - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest }
           - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-latest }
-          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-15-intel }
+          # 修复：将 macos-15-intel 变更为官方支持的 macos-13 (Intel 架构)
+          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-13       }
           - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest   }
     steps:
       - name: Checkout sing-box code
@@ -152,14 +150,12 @@ jobs:
           pattern: sing-box-*
           merge-multiple: true
 
-      # 优化：精准匹配编译出的二进制文件，避免校验和文件计算自身
       - name: Generate SHA256 Checksums
         run: |
           cd ./all-releases
           sha256sum sing-box_* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      # 修复：将 tag 中的空格替换为连字符 -
       - name: Upload to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
@@ -178,29 +174,30 @@ jobs:
             
             *包含 gRPC 及全量常用特性，构建时已注入官方版本号。*
 
-      # ========== 优化与修复：仅保留最近 5 个 sing-box Release ==========
+      # ========== 优化与修复：保留最近 5 个 Release，并联动删除底层 Git Tag ==========
       - name: Keep only latest 5 sing-box releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 修复：匹配前缀改为 "sing-box-"
-          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}')
+          # 抓取包含特定前缀的 release 列表
+          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '[.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}]')
           
-          if [ -z "$releases" ]; then
+          if [ -z "$releases" ] || [ "$releases" = "[]" ]; then
             echo "No sing-box releases found."
             exit 0
           fi
           
-          old_ids=$(echo "$releases" | jq -s 'sort_by(.created) | reverse | .[5:][] | .id')
-          
-          if [ -n "$old_ids" ]; then
-            echo "Deleting old releases with IDs:"
-            echo "$old_ids"
-            for id in $old_ids; do
-              echo "Deleting release ID: $id"
-              gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
-            done
-            echo "Cleanup completed."
-          else
-            echo "sing-box releases count ≤ 5, no deletion needed."
-          fi
+          # 排序并筛选出第 5 个之后的旧版本，循环进行 Release 和 Tag 的双重删除
+          echo "$releases" | jq -c 'sort_by(.created) | reverse | .[5:][]' | while read -r release; do
+            id=$(echo "$release" | jq -r '.id')
+            tag=$(echo "$release" | jq -r '.tag')
+            
+            echo "🧹 正在清理旧版本 -> Release ID: $id, Git Tag: $tag"
+            
+            # 1. 删除 GitHub Release 页面
+            gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
+            
+            # 2. 同步删除 Git Ref (Tag)，防止污染仓库
+            gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" || true
+          done
+          echo "✨ 仓库清理完成，保持最新 5 个版本。"
