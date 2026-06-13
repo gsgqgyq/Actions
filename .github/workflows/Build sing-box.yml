@@ -134,10 +134,10 @@ jobs:
     steps:
       # ✨ 只需要在这里加上这一步，克隆仓库获取 Git 上下文
       - name: Checkout repository
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
 
       - name: Download all artifacts
-        uses: actions/download-artifact@main
+        uses: actions/download-artifact@v4
         with:
           path: ./all-releases
           pattern: sing-box-*
