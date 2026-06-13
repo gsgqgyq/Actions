@@ -8,6 +8,9 @@ on:
         description: '指定编译的 Caddy 版本 (例如 v2.7.6)，留空则自动获取最新稳定版'
         required: false
         default: ''
+  schedule:  
+    - cron: '0 0 1/15 * *'
+
 
 # 显式赋予 GITHUB_TOKEN 写入权限
 permissions:
@@ -95,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: ./release-assets
           merge-multiple: true
@@ -110,7 +113,7 @@ jobs:
           tag: caddy-latest
           
           # ✨ 独家优化：Release 标题现在会自动带上真实的 Caddy 版本号
-          release_name: "Caddy 定制版最新编译 (${{ needs.build.outputs.caddy_version }})"
+          release_name: "Caddy (${{ needs.build.outputs.caddy_version }})"
           body: |
             ### 📦 编译说明
             这是一个集成了常用 DNS 及网络插件的 Caddy 自定义版本。
