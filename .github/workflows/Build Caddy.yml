@@ -80,7 +80,7 @@ jobs:
           path: ./release-tmp/*
 
       - name: Upload to GitHub Release
-        uses: svenstaro/upload-release-action@main
+        uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./release-tmp/*
