@@ -184,3 +184,31 @@ jobs:
             - macOS (Intel amd64 / Apple Silicon arm64)
             
             *包含 gRPC 及全量常用特性，构建时已注入官方版本号。*
+
+      # ========== 新增：仅保留最近 5 个 sing-box Release ==========
+      - name: Keep only latest 5 sing-box releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 获取所有以 "sing-box " 开头的 Release，分页保证完整
+          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '.[] | select(.tag_name | startswith("sing-box ")) | {id: .id, tag: .tag_name, created: .created_at}')
+          
+          if [ -z "$releases" ]; then
+            echo "No sing-box releases found."
+            exit 0
+          fi
+          
+          # 按创建时间降序排列（最新的在前），保留前 5 个，删除其余
+          old_ids=$(echo "$releases" | jq -s 'sort_by(.created) | reverse | .[5:][] | .id')
+          
+          if [ -n "$old_ids" ]; then
+            echo "Deleting old releases with IDs:"
+            echo "$old_ids"
+            for id in $old_ids; do
+              echo "Deleting release ID: $id"
+              gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
+            done
+            echo "Cleanup completed."
+          else
+            echo "sing-box releases count ≤ 5, no deletion needed."
+          fi
