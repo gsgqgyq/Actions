@@ -8,8 +8,7 @@ on:
         required: false
         default: ''
   schedule:  
-    - cron: '0 0 1/3 * *'
-
+    - cron: '0 0 */15 * *' # 
 
 permissions:
   contents: write
@@ -39,8 +38,7 @@ jobs:
           INPUT_VERSION="${{ github.event.inputs.version }}"
           
           if [ -n "$INPUT_VERSION" ]; then
-            # 校验手动输入的 tag 是否存在于上游仓库
-            if ! gh api repos/SagerNet/sing-box/git/ref/tags/${INPUT_VERSION} --silent; then
+            if ! gh api "repos/SagerNet/sing-box/git/ref/tags/${INPUT_VERSION}" --silent; then
               echo "❌ 指定的版本 $INPUT_VERSION 在上游仓库中不存在"
               exit 1
             fi
@@ -50,7 +48,6 @@ jobs:
             exit 0
           fi
           
-          # 自动模式：获取上游最新正式版
           UPSTREAM_VERSION=$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)
           
           if [ -z "$UPSTREAM_VERSION" ] || [ "$UPSTREAM_VERSION" = "null" ]; then
@@ -60,7 +57,6 @@ jobs:
           
           echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
           
-          # 优化：使用 gh CLI 代替 curl，更优雅地检查本仓库是否已存在该 Release
           if gh release view "sing-box-${UPSTREAM_VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "✨ 当前最新正式版 $UPSTREAM_VERSION 已编译过，无需重复编译。"
@@ -69,7 +65,7 @@ jobs:
             echo "🚀 检测到官方发布了新正式版 $UPSTREAM_VERSION，触发自动编译！"
           fi
 
-  # ================= STAGE 2: 并行编译 =================
+  # ================= STAGE 2: 混合矩阵编译 =================
   build:
     name: Build (${{ matrix.name }})
     needs: check-version
@@ -79,46 +75,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { goos: linux,   goarch: amd64, name: linux-amd64,   os: ubuntu-latest  }
-          - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-24.04-arm  }
-          - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest  }
-          - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-11-arm  }
-          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-26-intel  }
-          - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest  }
+          # Linux & Windows 支持 purego 模式，统一在低成本的 Ubuntu 节点跑交叉编译
+          - { goos: linux,   goarch: amd64, name: linux-amd64,   os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
+          - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
+          - { goos: windows, goarch: amd64, name: windows-amd64, os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
+          - { goos: windows, goarch: arm64, name: windows-arm64, os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
+          
+          # macOS 必须开启 CGO。Intel 架构使用 macos-13 节点，M系列架构使用 macos-latest (arm64) 节点
+          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-26-intel,  cgo: 1, tags_ext: "" }
+          - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest,  cgo: 1, tags_ext: "" }
     steps:
       - name: Checkout sing-box code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4
         with:
           repository: 'SagerNet/sing-box'
           ref: ${{ needs.check-version.outputs.version }}
 
       - name: Setup Go
-        uses: actions/setup-go@main
+        uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           check-latest: true
           cache: true
 
-      - name: Prepare release directory
-        run: mkdir -p release-tmp
-
       - name: Build sing-box
         env:
           BASE_TAGS: with_quic,with_grpc,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_gvisor,with_tailscale,with_ccm,with_naive_outbound,with_cloudflared
         run: |
+          mkdir -p release-tmp
           export GOOS=${{ matrix.goos }}
           export GOARCH=${{ matrix.goarch }}
+          export CGO_ENABLED=${{ matrix.cgo }}
           
-          if [ "$GOOS" = "darwin" ]; then
-            export CGO_ENABLED=1
-          else
-            export CGO_ENABLED=0
-          fi
-          
-          TAGS="$BASE_TAGS"
-          if [ "$GOOS" = "linux" ] || [ "$GOOS" = "windows" ]; then
-            TAGS="$TAGS,with_purego"
-          fi
+          # 动态拼接基础 Tags 与平台专属 Tags
+          TAGS="${BASE_TAGS}${{ matrix.tags_ext }}"
           
           VERSION="${{ needs.check-version.outputs.version }}"
           LDFLAGS="-s -w -checklinkname=0 -X 'github.com/sagernet/sing-box/constant.Version=$VERSION'"
@@ -131,19 +121,19 @@ jobs:
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
 
       - name: Upload artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
 
-  # ================= STAGE 3: 统一发布 =================
+  # ================= STAGE 3: 统一发布与清理 =================
   publish:
     name: Publish Releases
     needs: [check-version, build]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@m
+        uses: actions/download-artifact@v4
         with:
           path: ./all-releases
           pattern: sing-box-*
@@ -155,48 +145,55 @@ jobs:
           sha256sum sing-box_* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - name: Upload to GitHub Release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./all-releases/*
-          tag: sing-box-${{ needs.check-version.outputs.version }}
-          overwrite: true
-          file_glob: true
-          body: |
-            🤖 自动构建的上游版本：`${{ needs.check-version.outputs.version }}`
-            
-            **支持平台**：
-            - Linux (amd64 / arm64)
-            - Windows (amd64 / arm64)
-            - macOS (Intel amd64 / Apple Silicon arm64)
-            
-            *包含 gRPC 及全量常用特性，构建时已注入官方版本号。*
+      - name: Create GitHub Release (Native)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="sing-box-${{ needs.check-version.outputs.version }}"
+          
+          # 生成 Release 日志
+          cat <<EOF > release_note.md
+          🤖 自动构建的上游版本：\`${{ needs.check-version.outputs.version }}\`
+          
+          **支持平台**：
+          - Linux (amd64 / arm64)
+          - Windows (amd64 / arm64)
+          - macOS (Intel amd64 / Apple Silicon arm64)
+          
+          *包含 gRPC 及全量常用特性。其中 Linux/Windows 采用 purego 构建，macOS 完整保留 CGO 满血网络特性。*
+          EOF
+          
+          # 使用原生 GitHub CLI 进行发布
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "🔄 Release 已存在，正在更新覆盖资产..."
+            gh release upload "$TAG_NAME" ./all-releases/* --clobber
+          else
+            echo "🚀 创建新 Release..."
+            gh release create "$TAG_NAME" ./all-releases/* --title "$TAG_NAME" --notes-file release_note.md
+          fi
 
-      # ========== 优化与修复：保留最近 5 个 Release，并联动删除底层 Git Tag ==========
+      # ========== 自动清理：保持最新 5 个 Release，并联动删除底层 Git Tag ==========
       - name: Keep only latest 5 sing-box releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 抓取包含特定前缀的 release 列表
-          releases=$(gh api -X GET repos/${{ github.repository }}/releases --paginate --jq '[.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}]')
+          releases=$(gh api -X GET "repos/${{ github.repository }}/releases" --paginate --jq '[.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}]')
           
           if [ -z "$releases" ] || [ "$releases" = "[]" ]; then
             echo "No sing-box releases found."
             exit 0
           fi
           
-          # 排序并筛选出第 5 个之后的旧版本，循环进行 Release 和 Tag 的双重删除
           echo "$releases" | jq -c 'sort_by(.created) | reverse | .[5:][]' | while read -r release; do
             id=$(echo "$release" | jq -r '.id')
             tag=$(echo "$release" | jq -r '.tag')
             
             echo "🧹 正在清理旧版本 -> Release ID: $id, Git Tag: $tag"
             
-            # 1. 删除 GitHub Release 页面
+            # 1. 删除 Release 页面
             gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
             
-            # 2. 同步删除 Git Ref (Tag)，防止污染仓库
+            # 2. 同步删除 Git Tag 引用
             gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" || true
           done
           echo "✨ 仓库清理完成，保持最新 5 个版本。"
