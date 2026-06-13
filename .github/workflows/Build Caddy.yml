@@ -19,16 +19,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@main
         with:
           go-version: '1.22'
           check-latest: true
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: |
             ~/go/pkg/mod
@@ -39,7 +39,7 @@ jobs:
 
       - name: Cache xcaddy
         id: cache-xcaddy
-        uses: actions/cache@v4
+        uses: actions/cache@main
         with:
           path: ~/go/bin/xcaddy
           key: ${{ runner.os }}-xcaddy-latest
@@ -74,13 +74,13 @@ jobs:
             --output ./release-tmp/caddy_${{ steps.get_version.outputs.version }}_${{ matrix.name }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@main
         with:
           name: caddy-${{ github.sha }}-${{ matrix.name }}
           path: ./release-tmp/*
 
       - name: Upload to GitHub Release
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@main
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./release-tmp/*
