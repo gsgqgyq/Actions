@@ -1,5 +1,117 @@
+name: Build sing-box (gRPC)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '手动强制编译某个版本 (例如 v1.11.0，留空则自动检测)'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  # 优化：添加 -grpc 后缀，避免与同仓库其他构建 workflow 互相阻塞
+  group: sing-box-grpc-auto-build
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ================= STAGE 1: 检查版本 =================
+  check-version:
+    name: Check Upstream Release
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Compare version status
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          
+          if [ -n "$INPUT_VERSION" ]; then
+            # 校验手动输入的 tag 是否存在于上游仓库
+            if ! gh api repos/SagerNet/sing-box/git/ref/tags/${INPUT_VERSION} --silent; then
+              echo "❌ 指定的版本 $INPUT_VERSION 在上游仓库中不存在"
+              exit 1
+            fi
+            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "▶ 手动指定版本 $INPUT_VERSION，开始编译。"
+            exit 0
+          fi
+          
+          # 自动模式：获取上游最新正式版
+          UPSTREAM_VERSION=$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)
+          
+          # 优化：增加 API 返回值校验，防止因限流或网络问题导致误触发
+          if [ -z "$UPSTREAM_VERSION" ] || [ "$UPSTREAM_VERSION" = "null" ]; then
+            echo "❌ 获取上游版本失败，请检查网络或 API 限制"
+            exit 1
+          fi
+          
+          # 检查自己仓库是否已有该版本的 Release (HTTP 404 表示未发布)
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${UPSTREAM_VERSION}")
+          
+          echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+          
+          if [ "$HTTP_STATUS" = "404" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "🚀 检测到官方发布了新正式版 $UPSTREAM_VERSION，触发自动编译！"
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "✨ 当前最新正式版 $UPSTREAM_VERSION 已编译过，无需重复编译。"
+          fi
+
+  # ================= STAGE 2: 并行编译 =================
+  build:
+    name: Build (${{ matrix.name }})
+    needs: check-version
+    if: needs.check-version.outputs.should_build == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux,   goarch: amd64, name: linux-amd64,   os: ubuntu-latest  }
+          - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest  }
+          - { goos: windows, goarch: amd64, name: windows-amd64, os: windows-latest }
+          - { goos: windows, goarch: arm64, name: windows-arm64, os: windows-latest }
+          # 优化：macos-13 已下线，替换为 macos-15-intel
+          - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-15-intel }
+          - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest   }
+    steps:
+      - name: Checkout sing-box code
+        uses: actions/checkout@v4
+        with:
+          repository: 'SagerNet/sing-box'
+          ref: ${{ needs.check-version.outputs.version }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          # 优化：使用 stable 确保兼容最新版 sing-box 的 go.mod 要求
+          go-version: 'stable'
+          check-latest: true
+          cache: true
+
+      - name: Prepare release directory
+        run: mkdir -p release-tmp
+
       - name: Build sing-box
         env:
+          # 优化：移除了无效的 badlinkname 和 tfogo_checklinkname0
           BASE_TAGS: with_quic,with_grpc,with_dhcp,with_wireguard,with_utls,with_acme,with_clash_api,with_gvisor,with_tailscale,with_ccm,with_naive_outbound,with_cloudflared
         run: |
           export GOOS=${{ matrix.goos }}
@@ -17,7 +129,8 @@
           fi
           
           VERSION="${{ needs.check-version.outputs.version }}"
-          # ✅ 修复：-checklinkname=0 是链接器标志，必须放在 -ldflags 中
+          # 修复：-checklinkname=0 是链接器标志，必须放在 -ldflags 中
+          # 优化：注入 sing-box 官方版本号变量
           LDFLAGS="-s -w -checklinkname=0 -X 'github.com/sagernet/sing-box/constant.Version=$VERSION'"
           
           EXT=""
@@ -27,3 +140,47 @@
           
           # 执行编译
           go build -v -tags "$TAGS" -ldflags "$LDFLAGS" -o ./release-tmp/sing-box_${VERSION}_${{ matrix.name }}$EXT ./cmd/sing-box
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box-${{ matrix.name }}
+          path: ./release-tmp/*
+
+  # ================= STAGE 3: 统一发布 =================
+  publish:
+    name: Publish Releases
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-releases
+          pattern: sing-box-*
+          merge-multiple: true
+
+      # 优化：新增生成 SHA256 校验和步骤
+      - name: Generate SHA256 Checksums
+        run: |
+          cd ./all-releases
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./all-releases/*
+          tag: ${{ needs.check-version.outputs.version }}
+          overwrite: true
+          file_glob: true
+          body: |
+            🤖 自动构建的上游版本：`${{ needs.check-version.outputs.version }}`
+            
+            **支持平台**：
+            - Linux (amd64 / arm64)
+            - Windows (amd64 / arm64)
+            - macOS (Intel amd64 / Apple Silicon arm64)
+            
+            *包含 gRPC 及全量常用特性，构建时已注入官方版本号。*
