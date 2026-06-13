@@ -9,7 +9,7 @@ on:
         required: false
         default: ''
   schedule:  
-    - cron: '0 0 1/15 * *'
+    - cron: '0 0 */15 * *'
 
 
 # 显式赋予 GITHUB_TOKEN 写入权限
