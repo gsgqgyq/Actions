@@ -8,7 +8,7 @@ on:
         required: false
         default: ''
   schedule:  
-    - cron: '0 0 */15 * *' # 
+    - cron: '0 0 */15 * *' 
 
 permissions:
   contents: write
@@ -57,6 +57,7 @@ jobs:
           
           echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
           
+          # 🔍 检查这个具体版本号的历史 Release 是否存在
           if gh release view "sing-box-${UPSTREAM_VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "✨ 当前最新正式版 $UPSTREAM_VERSION 已编译过，无需重复编译。"
@@ -75,13 +76,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux & Windows 支持 purego 模式，统一在低成本的 Ubuntu 节点跑交叉编译
           - { goos: linux,   goarch: amd64, name: linux-amd64,   os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
           - { goos: linux,   goarch: arm64, name: linux-arm64,   os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
           - { goos: windows, goarch: amd64, name: windows-amd64, os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
           - { goos: windows, goarch: arm64, name: windows-arm64, os: ubuntu-latest, cgo: 0, tags_ext: ",with_purego" }
           
-          # macOS 必须开启 CGO。Intel 架构使用 macos-13 节点，M系列架构使用 macos-latest (arm64) 节点
           - { goos: darwin,  goarch: amd64, name: darwin-amd64,  os: macos-26-intel,  cgo: 1, tags_ext: "" }
           - { goos: darwin,  goarch: arm64, name: darwin-arm64,  os: macos-latest,  cgo: 1, tags_ext: "" }
     steps:
@@ -107,7 +106,6 @@ jobs:
           export GOARCH=${{ matrix.goarch }}
           export CGO_ENABLED=${{ matrix.cgo }}
           
-          # 动态拼接基础 Tags 与平台专属 Tags
           TAGS="${BASE_TAGS}${{ matrix.tags_ext }}"
           
           VERSION="${{ needs.check-version.outputs.version }}"
@@ -126,13 +124,12 @@ jobs:
           name: sing-box-${{ matrix.name }}
           path: ./release-tmp/*
 
-  # ================= STAGE 3: 统一发布与清理 =================
+  # ================= STAGE 3: 双重发布与双向清理 =================
   publish:
     name: Publish Releases
     needs: [check-version, build]
     runs-on: ubuntu-latest
     steps:
-      # ✨ 只需要在这里加上这一步，克隆仓库获取 Git 上下文
       - name: Checkout repository
         uses: actions/checkout@main
 
@@ -149,42 +146,57 @@ jobs:
           sha256sum sing-box_* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - name: Create GitHub Release (Native)
+      - name: Deploy to Both Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="sing-box-${{ needs.check-version.outputs.version }}"
+          VERSION_STR="${{ needs.check-version.outputs.version }}"
+          CURRENT_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           
-          # 生成 Release 日志
+          # ---------------- 公用 Release 说明模板 ----------------
           cat <<EOF > release_note.md
-          🤖 自动构建的上游版本：\`${{ needs.check-version.outputs.version }}\`
+          🤖 自动构建的上游版本：\`${VERSION_STR}\`
+          🕒 编译发布时间：${CURRENT_TIME}
           
           **支持平台**：
           - Linux (amd64 / arm64)
           - Windows (amd64 / arm64)
           - macOS (Intel amd64 / Apple Silicon arm64)
           
-          *包含 gRPC 及全量常用特性。其中 Linux/Windows 采用 purego 构建，macOS 完整保留 CGO 满血网络特性。*
+          *包含 gRPC 及全量常用特性。Linux/Windows 为 purego 构建，macOS 为满血 CGO 构建。*
           EOF
           
-          # 使用原生 GitHub CLI 进行发布
-          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            echo "🔄 Release 已存在，正在更新覆盖资产..."
-            gh release upload "$TAG_NAME" ./all-releases/* --clobber
+          # ---------------- 1. 发布到具体版本 (历史保留) ----------------
+          TAG_VERSION="sing-box-${VERSION_STR}"
+          if gh release view "$TAG_VERSION" >/dev/null 2>&1; then
+            echo "🔄 $TAG_VERSION 已存在，覆盖资产..."
+            gh release upload "$TAG_VERSION" ./all-releases/* --clobber
           else
-            echo "🚀 创建新 Release..."
-            gh release create "$TAG_NAME" ./all-releases/* --title "$TAG_NAME" --notes-file release_note.md
+            echo "🚀 创建新历史版本 Release: $TAG_VERSION"
+            gh release create "$TAG_VERSION" ./all-releases/* --title "$TAG_VERSION" --notes-file release_note.md
+          fi
+          
+          # ---------------- 2. 发布到最新滚动版 (永远最新) ----------------
+          TAG_LATEST="singbox-latest"
+          if gh release view "$TAG_LATEST" >/dev/null 2>&1; then
+            echo "🔄 更新 singbox-latest 滚动版..."
+            gh release edit "$TAG_LATEST" --title "Sing-box Pre-built Latest (${VERSION_STR})" --notes-file release_note.md
+            gh release upload "$TAG_LATEST" ./all-releases/* --clobber
+          else
+            echo "🚀 首次创建 singbox-latest 滚动版..."
+            gh release create "$TAG_LATEST" ./all-releases/* --title "Sing-box Pre-built Latest (${VERSION_STR})" --notes-file release_note.md
           fi
 
-      # ========== 自动清理：保持最新 5 个 Release，并联动删除底层 Git Tag ==========
-      - name: Keep only latest 5 sing-box releases
+      # ---------------- 3. 清理历史：保持带版本号的 Release 只有最新 5 个 ----------------
+      - name: Keep only latest 5 historical releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 🚨 关键：这里通过 startswith("sing-box-") 精确匹配，会把 "singbox-latest" 完美过滤掉
           releases=$(gh api -X GET "repos/${{ github.repository }}/releases" --paginate --jq '[.[] | select(.tag_name | startswith("sing-box-")) | {id: .id, tag: .tag_name, created: .created_at}]')
           
           if [ -z "$releases" ] || [ "$releases" = "[]" ]; then
-            echo "No sing-box releases found."
+            echo "No historical sing-box releases found."
             exit 0
           fi
           
@@ -192,12 +204,8 @@ jobs:
             id=$(echo "$release" | jq -r '.id')
             tag=$(echo "$release" | jq -r '.tag')
             
-            echo "🧹 正在清理旧版本 -> Release ID: $id, Git Tag: $tag"
-            
-            # 1. 删除 Release 页面
+            echo "🧹 正在清理旧历史版本 -> Release ID: $id, Git Tag: $tag"
             gh api -X DELETE "repos/${{ github.repository }}/releases/$id"
-            
-            # 2. 同步删除 Git Tag 引用
             gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$tag" || true
           done
-          echo "✨ 仓库清理完成，保持最新 5 个版本。"
+          echo "✨ 历史版本清理完成，保留最新 5 个（singbox-latest 保持不动）。"
